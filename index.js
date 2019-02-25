@@ -33,46 +33,49 @@ function parseUmlText(sourceText) {
 
 module.exports = {
   blocks: {
-    plantuml: {
-      process: function (block) {
-        var defaultFormat = this.generator == 'ebook'? '.png' : '.svg';
-        var outputFormat = this.generator == 'ebook'? '-tpng' : '-tsvg';
+    code: function(block) {
+        var lang = block.kwargs.language;
+        if (lang == "plantuml") {
+            var defaultFormat = this.generator == 'ebook'? '.png' : '.svg';
+            var outputFormat = this.generator == 'ebook'? '-tpng' : '-tsvg';
 
-        var umlText = parseUmlText(block.body);
-        var re = /@startditaa/
+            var umlText = parseUmlText(block.body);
+            var re = /@startditaa/
 
-        if (re.test(umlText)) {
-            defaultFormat = '.png';
+            if (re.test(umlText)) {
+                defaultFormat = '.png';
+            }
+
+            var imageName = hashedImageName(umlText) + defaultFormat;
+            var imagePath = path.join(os.tmpdir(), imageName);
+
+            if (fs.existsSync(imagePath)) {
+              this.log.info("skipping plantUML image for ", imageName, "\n");
+            }
+            else {
+              this.log.info("rendering plantUML image to ", imageName, "\n");
+
+              var cwd = cwd || process.cwd();
+
+              childProcess.spawnSync("java", [
+                  '-Dplantuml.include.path=' + cwd,
+                  '-Djava.awt.headless=true',
+                  '-jar', PLANTUML_JAR, outputFormat,
+                  '-pipe'
+                ],
+                {
+                  // TODO: Extract stdout to a var and persist with this.output.writeFile
+                  stdio: ['pipe', fs.openSync(imagePath, 'w'), 'pipe'],
+                  input: umlText
+                });
+            }
+            
+            this.output.copyFile(imagePath,imageName);
+
+            return "<img src=\"" + path.join("/", imageName) + "\"/>";
+        } else {
+            return block.body;
         }
-
-        var imageName = hashedImageName(umlText) + defaultFormat;
-        var imagePath = path.join(os.tmpdir(), imageName);
-
-        if (fs.existsSync(imagePath)) {
-          this.log.info("skipping plantUML image for ", imageName, "\n");
-        }
-        else {
-          this.log.info("rendering plantUML image to ", imageName, "\n");
-
-          var cwd = cwd || process.cwd();
-
-          childProcess.spawnSync("java", [
-              '-Dplantuml.include.path=' + cwd,
-              '-Djava.awt.headless=true',
-              '-jar', PLANTUML_JAR, outputFormat,
-              '-pipe'
-            ],
-            {
-              // TODO: Extract stdout to a var and persist with this.output.writeFile
-              stdio: ['pipe', fs.openSync(imagePath, 'w'), 'pipe'],
-              input: umlText
-            });
-        }
-        
-        this.output.copyFile(imagePath,imageName);
-
-        return "<img src=\"" + path.join("/", imageName) + "\"/>";
-      }
     }
   }
 };
