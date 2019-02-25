@@ -20,8 +20,13 @@ function hashedImageName(content) {
 
 function parseUmlText(sourceText) {
   var umlText = entities.decode(sourceText).replace(/(^[ \t]*\n)/gm, '');
+  var regexp1 = /<a href="[^"]*">/;
+  var regexp2 = /<\/a>/;
   umlText = marked(umlText).replace(/^<p>/, '').replace(/<\/p>\n$/, '');
   umlText = entities.decode(umlText);
+
+  umlText = umlText.replace(regexp1, "");
+  umlText = umlText.replace(regexp2, "");
 
   return umlText;
 }
@@ -41,14 +46,13 @@ module.exports = {
         }
 
         var imageName = hashedImageName(umlText) + defaultFormat;
-        this.log.debug("using tempDir ", os.tmpdir());
         var imagePath = path.join(os.tmpdir(), imageName);
 
         if (fs.existsSync(imagePath)) {
-          this.log.info("skipping plantUML image for ", imageName);
+          this.log.info("skipping plantUML image for ", imageName, "\n");
         }
         else {
-          this.log.info("rendering plantUML image to ", imageName);
+          this.log.info("rendering plantUML image to ", imageName, "\n");
 
           var cwd = cwd || process.cwd();
 
@@ -65,7 +69,6 @@ module.exports = {
             });
         }
         
-        this.log.debug("copying plantUML from tempDir for ", imageName);
         this.output.copyFile(imagePath,imageName);
 
         return "<img src=\"" + path.join("/", imageName) + "\"/>";
